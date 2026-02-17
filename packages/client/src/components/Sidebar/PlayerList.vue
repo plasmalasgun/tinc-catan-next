@@ -9,12 +9,14 @@
   const getControllerIcon = (type) => {
     if (type === 'HUMAN') return '🧠';
     if (type === 'AGENT') return '🤖';
-    return '👻'; // Default to Skull if type is null or undefined
+    if (type === null || type === undefined) return '👻'; // THE FIX
+  
+    return '❓'; 
   };
 
   const getConnectionIcon = (player) => {
-    // Dead seats (Skull) shouldn't show a link status, they show a "No Connection" mark
-    if (player.controllerType === null || player.controllerType === undefined) {
+    // Ghosts don't have broken links; they have NO links (✖️).
+    if (player.controllerType === null) {
       return '✖️'; 
     }
     return player.isOnline ? '🔗' : '⛓️‍💥';
@@ -79,8 +81,8 @@
         <!-- 1. Seat Color Emoji -->
         <span class="stat-icon">{{ COLOR_TO_EMOJI[player.color] || '⚪' }}</span>
 
-        <!-- 2. Controller Type (Brain vs Robot) -->
-        <span class="stat-icon">{{ player.controllerType === 'HUMAN' ? '🧠' : '🤖' }}</span>
+        <!-- 2. Controller (🧠, 🤖, or 👻) -->
+        <span class="stat-icon">{{ getControllerIcon(player.controllerType) }}</span>
 
         <!-- 3. Role (King vs Farmer) -->
         <span class="stat-icon">{{ player.isHost ? '👑' : '👨‍🌾' }}</span>
@@ -95,8 +97,8 @@
         <span class="stat-data">🏆x{{ player.victoryPoints }}</span>
 
         <!-- 7. Dynamic Name -->
-        <span class="player-name" :class="{ 'is-ghost': player.controllerType === null }">
-          {{ player.name }}
+        <span class="player-name" :class="{ 'is-me': player.controllerId === gameStore.playerId, 'is-ghost': player.controllerType === null }">
+          {{ getPlayerPrefix(player) }}_{{ player.name }}
         </span>
 
         <!-- 8. Suggested Icon: Turn Indicator -->
