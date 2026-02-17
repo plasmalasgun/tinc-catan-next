@@ -1,0 +1,1 @@
+{"version":3,"file":"LayoutFactory.d.ts","sourceRoot":"","sources":["../../src/layouts/LayoutFactory.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,EAAE,MAAM,kBAAkB,CAAC;AAGzC,qBAAa,aAAa;IACxB;;OAEG;IACH,MAAM,CAAC,cAAc,CAAC,KAAK,EAAE,KAAK;IAYlC;;OAEG;IACH,MAAM,CAAC,eAAe,CAAC,KAAK,EAAE,KAAK,EAAE,KAAK,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM;CAGnE"}

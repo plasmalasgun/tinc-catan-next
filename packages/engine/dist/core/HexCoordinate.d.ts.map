@@ -1,0 +1,1 @@
+{"version":3,"file":"HexCoordinate.d.ts","sourceRoot":"","sources":["../../src/core/HexCoordinate.ts"],"names":[],"mappings":"AAAA,qBAAa,aAAa;aAIN,CAAC,EAAE,MAAM;aACT,CAAC,EAAE,MAAM;aACT,CAAC,EAAE,MAAM;gBAFT,CAAC,EAAE,MAAM,EACT,CAAC,EAAE,MAAM,EACT,CAAC,GAAE,MAAe;IAQ7B,QAAQ,IAAI,MAAM;IAIlB,YAAY,IAAI,aAAa,EAAE;CAcvC"}
