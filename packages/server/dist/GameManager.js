@@ -1,9 +1,9 @@
 import { ActionProcessor, Board, LayoutFactory } from '@tinc/engine';
 export class GameManager {
     games = new Map();
-    //private timers: Map<string, NodeJS.Timeout> = new Map();
+    timers = new Map();
     // Settings for the "Agentic" behavior
-    //private TURN_TIMEOUT_MS = 60000; // 60 seconds
+    TURN_TIMEOUT_MS = 60000; // 60 seconds
     constructor() { }
     /**
      * Creates a new game instance
@@ -70,7 +70,7 @@ export class GameManager {
         const state = this.games.get(gameId);
         if (!state)
             return null;
-        const playerLeaving = state.players.find(p => p.id === playerId);
+        const playerLeaving = state.players.find(p => p.id === playerId || p.controllerId === playerId);
         if (playerLeaving) {
             playerLeaving.isOnline = false;
             if (playerLeaving.isHost) {

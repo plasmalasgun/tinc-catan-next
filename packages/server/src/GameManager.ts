@@ -1,12 +1,17 @@
-import { GameState, ActionProcessor, Board, LayoutFactory, Player } from '@tinc/engine';
+import { GameState,
+         ActionProcessor,
+         Board,
+         LayoutFactory,
+         Player } from '@tinc/engine';
+
 import { v4 as uuidv4 } from 'uuid';
 
 export class GameManager {
   private games: Map<string, GameState> = new Map();
-  //private timers: Map<string, NodeJS.Timeout> = new Map();
+  private timers: Map<string, NodeJS.Timeout> = new Map();
   
   // Settings for the "Agentic" behavior
-  //private TURN_TIMEOUT_MS = 60000; // 60 seconds
+  private TURN_TIMEOUT_MS = 60000; // 60 seconds
 
   constructor() {}
 
@@ -93,13 +98,15 @@ export class GameManager {
     const state = this.games.get(gameId);
     if (!state) return null;
 
-    const playerLeaving = state.players.find(p => p.id === playerId);
+    const playerLeaving = 
+      state.players.find(p => p.id === playerId || p.controllerId === playerId);
 
     if (playerLeaving) {
       playerLeaving.isOnline = false;
 
       if(playerLeaving.isHost) {
         playerLeaving.isHost = false;
+        
         const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN');
         if (nextHost) nextHost.isHost = true;
 
