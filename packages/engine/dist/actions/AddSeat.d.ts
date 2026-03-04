@@ -1,6 +1,6 @@
 import { Action, ActionResponse } from './Action.js';
 import { GameState } from '../types/index.js';
-export declare class StartGameAction implements Action {
+export declare class AddSeatAction implements Action {
     playerId: string;
     payload: any;
     type: string;
@@ -14,4 +14,4 @@ export declare class StartGameAction implements Action {
     };
     execute(state: GameState): ActionResponse;
 }
-//# sourceMappingURL=StartGame.d.ts.map
+//# sourceMappingURL=AddSeat.d.ts.map

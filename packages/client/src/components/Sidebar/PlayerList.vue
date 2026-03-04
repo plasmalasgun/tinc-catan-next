@@ -1,10 +1,20 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { computed } from 'vue';
   import { useGameStore } from '../../stores/gameStore';
   import { COLOR_TO_EMOJI } from '../../utils/constants';
   import CommandConsole from './CommandConsole.vue';
 
   const gameStore = useGameStore();
+
+  const isKing = computed(() => {
+    return gameStore.state?.players.find(p => p.controllerId === gameStore.playerId)?.isHost;
+  });
+
+  const canManifest = computed(() => {
+    if (!gameStore.state) return false;
+    const noGhosts = gameStore.state.players.every(p => p.controllerType !== null);
+    return noGhosts && gameStore.state.players.length >= 2;
+  });
 
   const getControllerIcon = (type) => {
     if (type === 'HUMAN') return '🧠';
@@ -52,6 +62,19 @@
   const startGame = () => {
     gameStore.performAction('START_GAME', {});
   };
+
+  // Check if the local user is the Host
+  const isLocalHost = computed(() => {
+    return gameStore.state?.players.find(p => p.controllerId === gameStore.playerId)?.isHost;
+  });
+
+  const handleManifest = () => {
+    gameStore.performAction('START_GAME', {});
+  };
+
+  const addSeat = () => gameStore.performAction('ADD_SEAT', {});
+  const removeSeat = (id) => gameStore.performAction('REMOVE_SEAT', { targetSeatId: id });
+  const assignBot = (id) => gameStore.performAction('TOGGLE_CONTROLLER', { targetPlayerId: id, controllerType: 'AGENT' });
 </script>
 
 
@@ -60,52 +83,55 @@
     <div class="sidebar-header">
       <h3>AGENTIC LOBBY</h3>
       <div class="my-id">LOCAL_USER: {{ gameStore.playerId }}</div>
-    </div>
 
-
-    <!-- THE START BUTTON: Only for the King during Lobby -->
-    <div v-if="gameStore.state?.phase === 'LOBBY' && isHost" class="host-controls">
-      <button @click="startGame" class="start-btn">
-        🚀 MANIFEST GAME
+      <button 
+        v-if="isKing && gameStore.state?.players.length < 4"
+        @click="addSeat" class="btn-small">➕ Add Seat
       </button>
-      <p class="hint">Remaining 👻 will become 🤖</p>
     </div>
+
+
+
 
     <div class="player-list">
-      <div 
-        v-for="player in gameStore.state.players" 
-        :key="player.id" 
-        class="player-row"
-        :class="{ 'active-turn': isCurrentTurn(player.id) }"
-      >
-        <!-- 1. Seat Color Emoji -->
-        <span class="stat-icon">{{ COLOR_TO_EMOJI[player.color] || '⚪' }}</span>
+      <div v-for="player in gameStore.state?.players" :key="player.id" class="player-row">
+        <!-- Spacer Column -->
+        <div class="spacer-col">
+          <button v-if="isKing && player.controllerType === null" @click="removeSeat(player.id)" title="Remove Seat">✖️</button>
+          <span v-else> </span>
+        </div>
 
-        <!-- 2. Controller (🧠, 🤖, or 👻) -->
-        <span class="stat-icon">{{ getControllerIcon(player.controllerType) }}</span>
-
-        <!-- 3. Role (King vs Farmer) -->
-        <span class="stat-icon">{{ player.isHost ? '👑' : '👨‍🌾' }}</span>
-
-        <!-- 4. Link / Broken / Dead -->
-        <span class="stat-icon">{{ getConnectionIcon(player) }}</span>
-
-        <!-- 5. Cargo (Total Resources) -->
-        <span class="stat-data">🎒x{{ getCargoCount(player) }}</span>
-
-        <!-- 6. Target (Victory Points) -->
-        <span class="stat-data">🏆x{{ player.victoryPoints }}</span>
-
-        <!-- 7. Dynamic Name -->
-        <span class="player-name" :class="{ 'is-me': player.controllerId === gameStore.playerId, 'is-ghost': player.controllerType === null }">
-          {{ getPlayerPrefix(player) }}_{{ player.name }}
+        <span class="stat-icon">{{ COLOR_TO_EMOJI[player.color] }}</span>
+        
+        <!-- Controller Toggle (Click Ghost to make Bot) -->
+        <span class="stat-icon pointer" @click="player.controllerType === null ? assignBot(player.id) : null">
+          {{ player.controllerType === 'HUMAN' ? '🧠' : (player.controllerType === 'AGENT' ? '🤖' : '👻') }}
         </span>
 
-        <!-- 8. Suggested Icon: Turn Indicator -->
-        <span v-if="isCurrentTurn(player.id)" class="turn-dice">🎲</span>
+        <span class="stat-icon">{{ player.isHost ? '👑' : '👨‍🌾' }}</span>
+        
+        <!-- Connection Link or Prohibited -->
+        <span class="stat-icon">
+          {{ player.controllerType === null ? '🚫' : (player.isOnline ? '🔗' : '⛓️‍💥') }}
+        </span>
+
+        <span class="stat-data">🎒x0 🏆x{{ player.victoryPoints }}</span>
+        
+        <span class="player-name">
+          {{ player.isHost ? 'Host' : 'Client' }}_{{ player.name }}
+        </span>
       </div>
     </div>
     
+    <button 
+      v-if="isKing && gameStore.state?.phase === 'LOBBY'" 
+      :disabled="!canManifest" 
+      @click="gameStore.performAction('START_GAME', {})"
+      class="btn-manifest"
+    >
+      🚀 MANIFEST GAME
+    </button>
+
     <!-- Extra States Suggestion: Game Phase Info -->
     <div class="phase-badge">
       🛰️ SYSTEM_PHASE: {{ gameStore.state.phase }}
@@ -219,5 +245,38 @@
     color: #aaa;
     margin-top: 8px;
   }
+
+  .spacer-col { width: 30px; display: flex; justify-content: center; color: #444; }
+  .pointer { cursor: pointer; }
+  .btn-manifest:disabled { filter: grayscale(1); opacity: 0.3; cursor: not-allowed; }
+
+  button[title="Remove Seat"] {
+  background: none !important;      /* Remove background */
+  border: none !important;          /* Remove border */
+  padding: 0 !important;            /* Remove padding */
+  margin: 0 !important;             /* Remove margin */
+  box-shadow: none !important;      /* Remove any shadows */
+  outline: none !important;         /* Remove focus outline (but consider accessibility) */
+  font-size: inherit;               /* Match surrounding text size */
+  cursor: pointer;                  /* Keep pointer cursor */
+  width: auto;                      /* Let icon determine width */
+  height: auto;                     /* Let icon determine height */
+  display: inline-block;            /* Keep it inline but clickable */
+  line-height: 1;                   /* Prevent extra height */
+  color: currentColor;              /* Match text color of parent */
+}
+
+/* Optional: Add a subtle hover effect if you want */
+button[title="Remove Seat"]:hover {
+  opacity: 0.7;                     /* Slight fade on hover */
+  transform: scale(1.1);            /* Optional: slight pop effect */
+  transition: all 0.2s ease;        /* Smooth transition */
+}
+
+/* Optional: Keep focus visible for keyboard navigation (accessibility) */
+button[title="Remove Seat"]:focus-visible {
+  outline: 2px solid currentColor;  /* Show outline only when tabbing */
+  outline-offset: 2px;
+}
 
 </style>

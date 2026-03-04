@@ -41,7 +41,8 @@ export class GameManager {
       victimsAvailable: [],
       turnNumber: 1,
       playedDevCardThisTurn: false,
-      devCardDeck: [],      
+      devCardDeck: [],
+      setupSequence: [],
       players: [
           // SEAT 1: The Human Host
           this.createNewPlayer(creatorId, shortId, "#e74c3c", true),
@@ -106,7 +107,7 @@ export class GameManager {
 
       if(playerLeaving.isHost) {
         playerLeaving.isHost = false;
-        
+
         const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN');
         if (nextHost) nextHost.isHost = true;
 

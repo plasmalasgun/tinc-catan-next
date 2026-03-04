@@ -1,10 +1,14 @@
 import { Action, ActionResponse } from './Action.js';
 import { GameState } from '../types/index.js';
-export declare class StartGameAction implements Action {
+export declare class RemoveSeatAction implements Action {
     playerId: string;
-    payload: any;
+    payload: {
+        targetSeatId: string;
+    };
     type: string;
-    constructor(playerId: string, payload?: any);
+    constructor(playerId: string, payload: {
+        targetSeatId: string;
+    });
     validate(state: GameState): {
         valid: boolean;
         error: string;
@@ -14,4 +18,4 @@ export declare class StartGameAction implements Action {
     };
     execute(state: GameState): ActionResponse;
 }
-//# sourceMappingURL=StartGame.d.ts.map
+//# sourceMappingURL=RemoveSeat.d.ts.map

@@ -54,6 +54,7 @@ export interface GameState {
     phase: string;
     startupIndex: number;
     startupSubPhase: string;
+    setupSequence: string[];
     currentPlayerId: string;
     players: Player[];
     board: {

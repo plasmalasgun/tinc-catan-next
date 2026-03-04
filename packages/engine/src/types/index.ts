@@ -60,8 +60,9 @@ export interface Tile {
 export interface GameState {
   id: string;
   phase: string;
-  startupIndex: number;
-  startupSubPhase: string;
+  startupIndex: number;    // Current position in the sequence (0-7)
+  startupSubPhase: string;  
+  setupSequence: string[]; // Array of Seat IDs in serpentine order
   currentPlayerId: string;
   players: Player[];
   board: {

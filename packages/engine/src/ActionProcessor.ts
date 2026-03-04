@@ -14,6 +14,25 @@ import { RollDiceAction } from './actions/RollDice.js';
 import { TakeCardAction } from './actions/TakeCard.js';
 import { ToggleControllerAction } from './actions/ToggleController.js';
 import { YearOfPlentyChoiceAction } from './actions/YearOfPlentyChoice.js';
+import { StartGameAction } from './actions/StartGame.js';
+import { AddSeatAction } from './actions/AddSeat.js';
+import { RemoveSeatAction } from './actions/RemoveSeat.js';
+//import { AssignControllerAction } from './actions/AssignController.js';
+
+/*
+      case 'START_GAME':
+        return new StartGameAction(playerId, payload);
+      
+      // NEW COMMANDS FOR THE KING:
+      case 'ADD_SEAT':
+        return new AddSeatAction(playerId, payload);
+        
+      case 'REMOVE_SEAT':
+        return new RemoveSeatAction(playerId, payload);
+        
+      case 'ASSIGN_CONTROLLER':
+        return new AssignControllerAction(playerId, payload);
+*/
 
 export class ActionProcessor {
   /**
@@ -90,9 +109,19 @@ export class ActionProcessor {
       case 'BUY_DEV_CARD':
         return new BuyDevCardAction(playerId, payload);
 
-      case 'TOGGLE_CONTROLLER':
-        return new ToggleControllerAction(playerId, payload);
-
+      case 'START_GAME':
+        return new StartGameAction(playerId, payload);
+      
+      // NEW COMMANDS FOR THE KING:
+      case 'ADD_SEAT':
+        return new AddSeatAction(playerId, payload);
+        
+      case 'REMOVE_SEAT':
+        return new RemoveSeatAction(playerId, payload);
+        
+      // case 'ASSIGN_CONTROLLER':
+      //   return new AssignControllerAction(playerId, payload);
+      
       default:
         return null;
     }

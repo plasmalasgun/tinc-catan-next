@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3000');
+const socket = io('http://localhost:4000');
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -25,6 +25,7 @@ export const useGameStore = defineStore('game', {
       // 1. Listen for successful state updates
       socket.on('game_state_update', (newState) => {
         // TRACER: Log the raw incoming board
+        console.log("OnSocketGameStateUpdate - ID:", socket.id);
         console.log("DEBUG: Raw Data Arrived!");
         console.log("Tiles Count:", newState?.board?.tiles?.length);
         console.log("First Tile Sample:", newState?.board?.tiles?.[0]);
@@ -42,7 +43,7 @@ export const useGameStore = defineStore('game', {
       });
 
       // 2. Listen for errors (The fix you needed)
-      socket.on('action_error', ({ message }) => {
+      socket.on('OnSocketActionError -', ({ message }) => {
         alert(`Error: ${message}`);
       });
 

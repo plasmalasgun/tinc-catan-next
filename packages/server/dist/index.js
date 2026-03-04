@@ -191,7 +191,7 @@ function getTotal(res) {
 /**
  * START SERVER
  */
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => {
     console.log(`Catan Production Server running on http://localhost:${PORT}`);
 });

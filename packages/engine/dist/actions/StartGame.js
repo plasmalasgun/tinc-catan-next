@@ -7,42 +7,44 @@ export class StartGameAction {
         this.payload = payload;
     }
     validate(state) {
-        const player = state.players.find(p => p.controllerId === this.playerId);
-        // 1. Only the King (Host) can start the game
-        if (!player?.isHost) {
-            return { valid: false, error: "Only the Host can start the game." };
+        const actor = state.players.find(p => p.controllerId === this.playerId);
+        if (!actor?.isHost)
+            return { valid: false, error: "Unauthorized." };
+        // THE NEW RULE: No Ghosts allowed when starting
+        const hasGhosts = state.players.some(p => p.controllerType === null);
+        if (hasGhosts) {
+            return { valid: false, error: "Cannot start: All seats must have a Brain 🧠 or a Robot 🤖." };
         }
-        // 2. Can only start from the Lobby
-        if (state.phase !== 'LOBBY') {
-            return { valid: false, error: "Game has already started." };
-        }
-        // 3. Minimum player check (standard Catan needs at least 3, but we allow 2 for testing)
-        if (state.players.length < 2) {
-            return { valid: false, error: "Need at least 2 players to begin." };
-        }
+        if (state.players.length < 2)
+            return { valid: false, error: "Need at least 2 players." };
         return { valid: true };
     }
     execute(state) {
-        // 1. MANIFESTATION: Fill all Ghost Seats with Agents
+        // 1. MANIFEST AGENTS: Turn all Ghosts into Robots
         state.players.forEach((seat) => {
             if (seat.controllerType === null) {
                 seat.controllerType = 'AGENT';
                 seat.controllerId = `bot_${seat.id}`;
-                seat.isOnline = true; // Robots are always online
-                seat.name = `Agent_${seat.color.replace('#', '')}`;
-                console.log(`ENGINE: Manifesting Agent in ${seat.color} seat.`);
+                seat.isOnline = true; // Agents are effectively always online
+                seat.name = `Agent_${seat.id.split('_')[1]}`;
             }
         });
-        // 2. SETUP TURN ORDER: Randomly shuffle the seats
-        const seatIds = state.players.map(p => p.id);
-        state.turnOrder = seatIds.sort(() => Math.random() - 0.5);
-        // 3. INITIALIZE STATE: Set phase and current player
+        // 2. SET TURN ORDER: 
+        // We shuffle the seat IDs to determine who is "Player 1", "Player 2", etc.
+        state.turnOrder = state.players.map(p => p.id).sort(() => Math.random() - 0.5);
+        // 3. GENERATE SERPENTINE SEQUENCE (Logic from Setup.java:80)
+        // Catan setup goes: [1, 2, 3, 4, 4, 3, 2, 1]
+        // We store this as a flat array of Seat IDs
+        const forward = [...state.turnOrder];
+        const backward = [...state.turnOrder].reverse();
+        state.setupSequence = [...forward, ...backward]; // Should be length 8 for 4 players
+        // 4. TRANSITION PHASE
         state.phase = 'STARTUP';
-        state.currentPlayerId = state.turnOrder[0];
-        state.turnNumber = 1;
+        state.startupIndex = 0; // Start at the first item in the serpentine sequence
+        state.currentPlayerId = state.setupSequence[0];
         return {
             success: true,
-            message: "The game has begun! Ghosts have been replaced by Agents.",
+            message: "The game has been manifested. Begin Startup Placements.",
             newState: state
         };
     }

@@ -28,6 +28,7 @@ export class GameManager {
             turnNumber: 1,
             playedDevCardThisTurn: false,
             devCardDeck: [],
+            setupSequence: [],
             players: [
                 // SEAT 1: The Human Host
                 this.createNewPlayer(creatorId, shortId, "#e74c3c", true),
