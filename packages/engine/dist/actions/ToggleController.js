@@ -21,18 +21,29 @@ export class ToggleControllerAction {
     execute(state) {
         const seat = state.players.find(p => p.id === this.payload.targetPlayerId);
         if (seat) {
-            // Logic: Update the "Driver" type for this "Seat"
             seat.controllerType = this.payload.controllerType;
-            // Logic: If it's becoming an Agent, we mark it as "Online" 
-            // because the computer is now at the wheel.
             if (seat.controllerType === 'AGENT') {
-                seat.isOnline = true;
-                seat.name = `Bot_${seat.id.substring(seat.id.length - 4)}`;
+                // Manifesting an Agent
+                seat.isOnline = true; // Agents are always online
+                seat.controllerId = `bot_${seat.id}`;
+                seat.name = `Agent_${seat.id.substring(seat.id.length - 4)}`;
+            }
+            else if (seat.controllerType === 'HUMAN') {
+                // Opening the seat for a Network Human
+                seat.isOnline = false; // ⛓️‍💥 Waiting for a human to connect
+                seat.controllerId = null;
+                seat.name = `Open_Seat`;
+            }
+            else if (seat.controllerType === null) {
+                // Banishing to a Ghost Seat
+                seat.isOnline = false; // 🚫
+                seat.controllerId = null;
+                seat.name = `Empty_Seat`;
             }
         }
         return {
             success: true,
-            message: `Controller for ${this.payload.targetPlayerId} updated to ${this.payload.controllerType}`,
+            message: `Seat ${this.payload.targetPlayerId} is now a ${this.payload.controllerType || 'GHOST'}.`,
             newState: state
         };
     }

@@ -2,52 +2,61 @@ import { Action, ActionResponse } from './Action.js';
 import { GameState } from '../types/index.js';
 
 export class ToggleControllerAction implements Action {
-  
   type = 'TOGGLE_CONTROLLER';
 
-    // We add the constructor so ActionProcessor can pass in the ID and Payload
   constructor(
     public playerId: string,
-    public payload: { targetPlayerId: string, controllerType: 'HUMAN' | 'AGENT' }
+    public payload: { targetPlayerId: string, controllerType: 'HUMAN' | 'AGENT' | null }
   ) {}
 
-
-    // Every action must have a validation step
   validate(state: GameState) {
-    const player = state.players.find(p => p.id === this.playerId);
+    // 1. Find the physical human trying to make this change
+    const actor = state.players.find(p => p.controllerId === this.playerId);
     
-    // Rule: Only the Host can change someone else's controller, 
-    // OR a player can change their own controller.
-    if ( ( !player?.isHost                              ) &&
-         ( this.playerId !== this.payload.targetPlayerId)    )
-    {
-      return { valid: false, error: "You do not have permission to change this controller." };
+    if (!actor) {
+      return { valid: false, error: "You are not recognized in this lobby." };
+    }
+
+    // 2. You must be the Host, UNLESS you are changing your own seat.
+    // actor.id is their Seat (e.g., 'seat_123'). payload.targetPlayerId is the seat being clicked.
+    if (!actor.isHost && actor.id !== this.payload.targetPlayerId) {
+      return { valid: false, error: "Only the 👑 Host can modify other seats." };
     }
 
     return { valid: true };
   }
 
-
   execute(state: GameState): ActionResponse {
     const seat = state.players.find(p => p.id === this.payload.targetPlayerId);
     
     if (seat) {
-      // Logic: Update the "Driver" type for this "Seat"
       seat.controllerType = this.payload.controllerType;
       
-      // Logic: If it's becoming an Agent, we mark it as "Online" 
-      // because the computer is now at the wheel.
       if (seat.controllerType === 'AGENT') {
-        seat.isOnline = true;
-        seat.name = `Bot_${seat.id.substring(seat.id.length - 4)}`;
+        // Manifesting an Agent
+        seat.isOnline = true; // Agents are always online
+        seat.controllerId = `bot_${seat.id}`;
+        seat.name = `Agent_${seat.id.substring(seat.id.length - 4)}`;
+      } 
+      else if (seat.controllerType === 'HUMAN') {
+        // Opening the seat for a Network Human
+        seat.isOnline = false; // ⛓️‍💥 Waiting for a human to connect
+        seat.controllerId = null; 
+        seat.name = `Open_Seat`;
+      } 
+      else if (seat.controllerType === null) {
+        // PILLAR 3: THE KICK. Banishing to a Ghost Seat
+        seat.isOnline = false; // 🚫
+        seat.controllerId = null;
+        seat.name = `Empty_Seat`;
+        seat.isHost = false; // A ghost can never hold the crown!
       }
     }
 
     return { 
       success: true, 
-      message: `Controller for ${this.payload.targetPlayerId} updated to ${this.payload.controllerType}`, 
+      message: `Seat updated to ${this.payload.controllerType || 'GHOST'}.`, 
       newState: state 
     };
   }
-
 }

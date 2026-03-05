@@ -1,5 +1,7 @@
 import { Action, ActionResponse } from './actions/Action.js';
 import { GameState } from './types/index.js';
+
+// Imports
 import { BuildSettlementAction } from './actions/BuildSettlement.js';
 import { BuyDevCardAction } from './actions/BuyDevCard.js';
 import { ExecuteTradeAction } from './actions/ExecuteTrade.js';
@@ -17,47 +19,32 @@ import { YearOfPlentyChoiceAction } from './actions/YearOfPlentyChoice.js';
 import { StartGameAction } from './actions/StartGame.js';
 import { AddSeatAction } from './actions/AddSeat.js';
 import { RemoveSeatAction } from './actions/RemoveSeat.js';
-//import { AssignControllerAction } from './actions/AssignController.js';
 
-/*
-      case 'START_GAME':
-        return new StartGameAction(playerId, payload);
-      
-      // NEW COMMANDS FOR THE KING:
-      case 'ADD_SEAT':
-        return new AddSeatAction(playerId, payload);
-        
-      case 'REMOVE_SEAT':
-        return new RemoveSeatAction(playerId, payload);
-        
-      case 'ASSIGN_CONTROLLER':
-        return new AssignControllerAction(playerId, payload);
-*/
 
 export class ActionProcessor {
   /**
    * This is the entry point. It receives a command and the current game state.
    */
-  public static process(state: GameState, rawAction: any): ActionResponse {
-    // 1. Identify which action to create
+public static process(state: GameState, rawAction: any): ActionResponse {
     const action = this.createAction(rawAction);
     
     if (!action) {
       return { success: false, message: `The game doesn't recognize the command: ${rawAction.type}` };
     }
 
-    // 2. Check if it is the player's turn
-    if (state.currentPlayerId !== action.playerId) {
+    // META-ACTIONS: These are lobby/admin commands that bypass the "turn order" rules
+    const adminActions =['START_GAME', 'ADD_SEAT', 'REMOVE_SEAT', 'TOGGLE_CONTROLLER'];
+
+    // Check if it is the player's turn (Only applies to in-game actions like rolling or building)
+    if (!adminActions.includes(action.type) && state.currentPlayerId !== action.playerId) {
       return { success: false, message: "Wait for your turn!" };
     }
 
-    // 3. Ask the Action to validate itself (Rules check)
     const validation = action.validate(state);
     if (!validation.valid) {
       return { success: false, message: validation.error };
     }
 
-    // 4. If all is well, perform the action and return the result
     return action.execute(state);
   }
 
@@ -109,18 +96,19 @@ export class ActionProcessor {
       case 'BUY_DEV_CARD':
         return new BuyDevCardAction(playerId, payload);
 
+      // ADMIN COMMANDS
       case 'START_GAME':
         return new StartGameAction(playerId, payload);
       
-      // NEW COMMANDS FOR THE KING:
       case 'ADD_SEAT':
         return new AddSeatAction(playerId, payload);
         
       case 'REMOVE_SEAT':
         return new RemoveSeatAction(playerId, payload);
         
-      // case 'ASSIGN_CONTROLLER':
-      //   return new AssignControllerAction(playerId, payload);
+      // FIX: Added the missing switch case!
+      case 'TOGGLE_CONTROLLER': 
+        return new ToggleControllerAction(playerId, payload);
       
       default:
         return null;
