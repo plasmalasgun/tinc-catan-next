@@ -29,7 +29,7 @@ export interface Player {
   
   controllerId: string | null; // Which User ID is currently driving?
   controllerType: 'HUMAN' | 'AGENT' | null; // Who is driving?
-  
+  agentType?: 'HEURISTIC' | 'LLM' | 'WEBHOOK' | null;
   isHost: boolean;
   isOnline: boolean; // Track connection status
 

@@ -4,12 +4,12 @@ export declare class ToggleControllerAction implements Action {
     playerId: string;
     payload: {
         targetPlayerId: string;
-        controllerType: 'HUMAN' | 'AGENT';
+        controllerType: 'HUMAN' | 'AGENT' | null;
     };
     type: string;
     constructor(playerId: string, payload: {
         targetPlayerId: string;
-        controllerType: 'HUMAN' | 'AGENT';
+        controllerType: 'HUMAN' | 'AGENT' | null;
     });
     validate(state: GameState): {
         valid: boolean;

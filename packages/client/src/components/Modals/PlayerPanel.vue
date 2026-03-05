@@ -1,46 +1,57 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useGameStore } from '../../stores/gameStore';
-import { COLOR_TO_EMOJI } from '../../utils/constants';
+  import { computed, ref } from 'vue';
+  import { useGameStore } from '../../stores/gameStore';
+  import { COLOR_TO_EMOJI } from '../../utils/constants';
 
-const props = defineProps<{
-  playerId: string | null;
-}>();
+  const props = defineProps<{
+    playerId: string | null;
+  }>();
 
-const emit = defineEmits(['close']);
+  const emit = defineEmits(['close']);
 
-const gameStore = useGameStore();
+  const gameStore = useGameStore();
 
-// Get the specific player object we clicked on
-const player = computed(() => {
-  return gameStore.state?.players.find((p: any) => p.id === props.playerId);
-});
-
-// Check if the local user looking at the screen is the Host (King)
-const isLocalHost = computed(() => {
-  return gameStore.state?.players.find((p: any) => p.controllerId === gameStore.playerId)?.isHost;
-});
-
-// Mock Local State for Agent parameters (Later we will sync these to the Engine)
-const agentBrain = ref('LLM');
-const agentPrompt = ref('You are a ruthless capitalist playing Catan. You hoard sheep.');
-const agentDelay = ref(2000);
-
-// Action: Change the Controller Type
-const changeController = (type: 'HUMAN' | 'AGENT' | null) => {
-  if (!isLocalHost.value) return;
-
-  // SAFETY NET: Prevent the host from Ghosting themselves!
-  if (type === null && player.value.controllerId === gameStore.playerId) {
-    alert("You cannot Banish yourself! Give the Crown to someone else first.");
-    return;
-  }
-
-  gameStore.performAction('TOGGLE_CONTROLLER', {
-    targetPlayerId: player.value.id,
-    controllerType: type
+  // Get the specific player object we clicked on
+  const player = computed(() => {
+    return gameStore.state?.players.find((p: any) => p.id === props.playerId);
   });
-};
+
+  // Check if the local user looking at the screen is the Host (King)
+  const isLocalHost = computed(() => {
+    return gameStore.state?.players.find((p: any) => p.controllerId === gameStore.playerId)?.isHost;
+  });
+
+  // REAL LEGO BLOCK TOGGLE
+  const agentBrain = computed({
+    get: () => player.value?.agentType || 'HEURISTIC', // Read from Engine
+    set: (newType: string) => { // Write to Engine
+      if (!isLocalHost.value) return;
+      gameStore.performAction('CONFIGURE_AGENT', {
+        targetPlayerId: player.value.id,
+        agentType: newType
+      });
+    }
+  });
+
+
+  const agentPrompt = ref('You are a ruthless capitalist playing Catan. You hoard sheep.');
+  const agentDelay = ref(2000);
+
+  // Action: Change the Controller Type
+  const changeController = (type: 'HUMAN' | 'AGENT' | null) => {
+    if (!isLocalHost.value) return;
+
+    // SAFETY NET: Prevent the host from Ghosting themselves!
+    if (type === null && player.value.controllerId === gameStore.playerId) {
+      alert("You cannot Banish yourself! Give the Crown to someone else first.");
+      return;
+    }
+
+    gameStore.performAction('TOGGLE_CONTROLLER', {
+      targetPlayerId: player.value.id,
+      controllerType: type
+    });
+  };
 
 </script>
 

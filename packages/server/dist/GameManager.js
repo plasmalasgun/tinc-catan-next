@@ -46,45 +46,57 @@ export class GameManager {
         const state = this.games.get(gameId);
         if (!state)
             throw new Error("Server.GameManager.joinGame: Game not found");
-        // 1. RECYCLING LOGIC: Check if this player already has a seat (Broken Link ⛓️‍💥)
-        const existingSeat = state.players.find(p => p.controllerId === playerId);
-        if (existingSeat) {
-            console.log(`Server.GameManager.joinGame: RE-LINKING: Player ${playerId} is reclaiming their seat ${existingSeat.id}`);
-            existingSeat.isOnline = true; // Turn ⛓️‍💥 back into 🔗
-            return state;
+        // PILLAR 1: RECLAIM SEAT (Session Token Matching)
+        let assignedSeat = state.players.find(p => p.controllerId === playerId);
+        if (assignedSeat) {
+            console.log(`RE-LINKING: Player ${playerId} reclaiming seat ${assignedSeat.id}`);
+            assignedSeat.isOnline = true;
         }
-        // 2. CLAIM LOGIC: If player is new, find the first available Vacant Seat (No Link ✖️)
-        const vacantSeat = state.players.find(p => p.controllerType === null);
-        if (vacantSeat) {
-            const shortId = playerId.substring(playerId.length - 5);
-            console.log(`Server.GameManager.joinGame: CLAIMING: Player ${playerId} taking vacant seat ${vacantSeat.id}`);
-            vacantSeat.controllerId = playerId;
-            vacantSeat.controllerType = 'HUMAN';
-            vacantSeat.name = shortId;
-            vacantSeat.isOnline = true; // Turn ✖️ into 🔗
-            return state;
+        else {
+            // CLAIM NEW SEAT
+            assignedSeat = state.players.find(p => p.controllerType === null);
+            if (assignedSeat) {
+                console.log(`CLAIMING: Player ${playerId} taking vacant seat ${assignedSeat.id}`);
+                assignedSeat.controllerId = playerId;
+                assignedSeat.controllerType = 'HUMAN';
+                assignedSeat.name = playerId.substring(playerId.length - 5);
+                assignedSeat.isOnline = true;
+            }
+            else {
+                throw new Error("Game is full! The Host must kick an offline player to free a seat.");
+            }
         }
-        throw new Error("Server.GameManager.joinGame: Game is full! No seats available.");
+        // PILLAR 2: HOST MIGRATION (Crown Passing)
+        // Is there any active Host currently online?
+        const isAnyHostOnline = state.players.some(p => p.isHost && p.isOnline);
+        if (!isAnyHostOnline) {
+            // Strip the dormant crown from anyone who might have it
+            state.players.forEach(p => p.isHost = false);
+            // Bestow the crown to this connecting player
+            assignedSeat.isHost = true;
+            console.log(`👑 CROWN CLAIMED: ${assignedSeat.name} is now the Host.`);
+        }
+        return state;
     }
     // Added this function to handle disconnects in the state
     setPlayerOffline(gameId, playerId) {
         const state = this.games.get(gameId);
         if (!state)
             return null;
-        const playerLeaving = state.players.find(p => p.id === playerId || p.controllerId === playerId);
+        const playerLeaving = state.players.find(p => p.controllerId === playerId);
         if (playerLeaving) {
-            playerLeaving.isOnline = false;
+            playerLeaving.isOnline = false; // They are offline (⛓️‍💥), NOT a ghost (👻)
             if (playerLeaving.isHost) {
-                playerLeaving.isHost = false;
+                // Try to pass the crown immediately to another online human
                 const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN');
-                if (nextHost)
-                    nextHost.isHost = true;
                 if (nextHost) {
+                    playerLeaving.isHost = false;
                     nextHost.isHost = true;
-                    console.log(`CROWN PASSING: The crown has been bestowed upon ${nextHost.name}`);
+                    console.log(`👑 CROWN PASSING: The crown passed to ${nextHost.name}`);
                 }
                 else {
-                    console.log(`CROWN PASSING: No online humans available to take the crown.`);
+                    console.log(`👑 CROWN DORMANT: No online humans available. Crown waiting for next connection.`);
+                    // We leave them as host. The moment ANYONE connects, joinGame() will snatch it.
                 }
             }
         }

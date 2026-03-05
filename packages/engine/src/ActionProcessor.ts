@@ -19,6 +19,7 @@ import { YearOfPlentyChoiceAction } from './actions/YearOfPlentyChoice.js';
 import { StartGameAction } from './actions/StartGame.js';
 import { AddSeatAction } from './actions/AddSeat.js';
 import { RemoveSeatAction } from './actions/RemoveSeat.js';
+import { ConfigureAgentAction } from './actions/ConfigureAgent.js'; 
 
 
 export class ActionProcessor {
@@ -33,7 +34,11 @@ public static process(state: GameState, rawAction: any): ActionResponse {
     }
 
     // META-ACTIONS: These are lobby/admin commands that bypass the "turn order" rules
-    const adminActions =['START_GAME', 'ADD_SEAT', 'REMOVE_SEAT', 'TOGGLE_CONTROLLER'];
+    const adminActions =[ 'START_GAME',
+                          'ADD_SEAT', 
+                          'REMOVE_SEAT', 
+                          'TOGGLE_CONTROLLER', 
+                          'CONFIGURE_AGENT'];
 
     // Check if it is the player's turn (Only applies to in-game actions like rolling or building)
     if (!adminActions.includes(action.type) && state.currentPlayerId !== action.playerId) {
@@ -105,6 +110,9 @@ public static process(state: GameState, rawAction: any): ActionResponse {
         
       case 'REMOVE_SEAT':
         return new RemoveSeatAction(playerId, payload);
+        
+      case 'CONFIGURE_AGENT':
+        return new ConfigureAgentAction(playerId, payload);
         
       // FIX: Added the missing switch case!
       case 'TOGGLE_CONTROLLER': 
