@@ -1,22 +1,37 @@
 <script setup lang="ts">
-  import { onMounted } from 'vue';
+  import { onMounted, onUnmounted, ref } from 'vue';
   import { useGameStore } from './stores/gameStore';
   import Board from './components/GameBoard/Board.vue';
   import TradeModal from './components/Modals/TradeModal.vue';
   import ChoiceModal from './components/Modals/ChoiceModal.vue';
   import PlayerList from './components/Sidebar/PlayerList.vue';
   import ResourceHud from './components/HUD/ResourceHud.vue';
+  import CommandConsole from './components/Sidebar/CommandConsole.vue';
 
   const gameStore = useGameStore();
 
+  // State for the Quake Console
+  const isConsoleOpen = ref(false);
+
+  // Global Key Interceptor
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      e.preventDefault(); // Monopolize the Tab key! (Stops focus shifting)
+      isConsoleOpen.value = !isConsoleOpen.value;
+    }
+  };  
+
   onMounted(() => {
     gameStore.init(); // Connect to Socket.io
+    window.addEventListener('keydown', handleKeydown);
   });
+
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+  });  
 </script>
 
 <template>
-
-
 
   <div v-if="!gameStore.state" class="loading">
     <h1>TINC IS NOT CATAN</h1>
@@ -32,7 +47,11 @@
   </div>  
 
   <main v-else>
+    <!-- The Left Quake Console -->
+    <CommandConsole :isOpen="isConsoleOpen" />    
     <Board />
+
+    <!-- The Right Agentic Lobby -->
     <PlayerList />
     <ResourceHud />
     <TradeModal />

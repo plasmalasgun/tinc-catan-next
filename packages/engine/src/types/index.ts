@@ -1,119 +1,152 @@
 import { HexCoordinate } from '../core/HexCoordinate.js';
 
-
-
-export type GamePhase = 'STARTUP' | 'ROLLING' | 'TRADING_BUILDING' | 'WAITING_FOR_TRADE' | 'ROBBER_DISCARD' | 'ROBBER_MOVE' | 'ROBBER_STEAL' | 'YEAR_OF_PLENTY' | 'MONOPOLY';
+export type GamePhase =
+  | 'STARTUP'
+  | 'ROLLING'
+  | 'TRADING_BUILDING'
+  | 'WAITING_FOR_TRADE'
+  | 'ROBBER_DISCARD'
+  | 'ROBBER_MOVE'
+  | 'ROBBER_STEAL'
+  | 'YEAR_OF_PLENTY'
+  | 'MONOPOLY';
 
 export enum DevCardType {
-  KNIGHT = 'KNIGHT',
-  MONOPOLY = 'MONOPOLY',
+  KNIGHT        = 'KNIGHT',
+  MONOPOLY      = 'MONOPOLY',
   YEAR_OF_PLENTY = 'YEAR_OF_PLENTY',
   ROAD_BUILDING = 'ROAD_BUILDING',
-  VICTORY_POINT = 'VICTORY_POINT'
+  VICTORY_POINT = 'VICTORY_POINT',
 }
 
 export enum ResourceType {
-  WHEAT = 'WHEAT', WOOD = 'WOOD', BRICK = 'BRICK', SHEEP = 'SHEEP', ORE = 'ORE', DESERT = 'DESERT'
+  WHEAT  = 'WHEAT',
+  WOOD   = 'WOOD',
+  BRICK  = 'BRICK',
+  SHEEP  = 'SHEEP',
+  ORE    = 'ORE',
+  DESERT = 'DESERT',
 }
 
 export interface DevCard {
   id: string;
   type: string;
-  boughtTurn: number; // To enforce "can't play same turn" rule
+  boughtTurn: number; // Enforce "can't play same turn" rule
 }
 
 export interface Player {
   id: string;
   name: string;
   color: string;
-  
-  controllerId: string | null; // Which User ID is currently driving?
-  controllerType: 'HUMAN' | 'AGENT' | null; // Who is driving?
-  agentType?: 'HEURISTIC' | 'LLM' | 'WEBHOOK' | null;
-  isHost: boolean;
-  isOnline: boolean; // Track connection status
+
+  controllerId:   string | null;              // Which session ID is driving this seat?
+  controllerType: 'HUMAN' | 'AGENT' | null;  // Who is driving?
+  agentType?:     'HEURISTIC' | 'LLM' | 'WEBHOOK' | null;
+
+  /**
+   * @deprecated  The Crown no longer lives on the seat.
+   * Use `GameState.hostSessionId` to determine the Root Admin.
+   * This field is kept optional so legacy reads don't crash, but
+   * nothing in the engine writes to it for authority checks.
+   */
+  isHost?: boolean;
+
+  isOnline: boolean;
 
   resources: {
     brick: number;
-    wood: number;
+    wood:  number;
     wheat: number;
     sheep: number;
-    ore: number;
+    ore:   number;
   };
-  victoryPoints: number;
-  devCards: any[];
+  victoryPoints:    number;
+  devCards:         any[];
   numPlayedKnights: number;
-  numSettlements: number;
-  hasLargestArmy: boolean;
-  hasLongestRoad: boolean;
+  numSettlements:   number;
+  hasLargestArmy:   boolean;
+  hasLongestRoad:   boolean;
 }
 
 export interface Tile {
-  id: string;
-  coord: HexCoordinate;
-  type: ResourceType;
-  value: number;
+  id:        string;
+  coord:     HexCoordinate;
+  type:      ResourceType;
+  value:     number;
   hasRobber: boolean;
 }
 
-
 export interface GameState {
   id: string;
-  phase: string;
-  startupIndex: number;    // Current position in the sequence (0-7)
-  startupSubPhase: string;  
-  setupSequence: string[]; // Array of Seat IDs in serpentine order
+
+  /**
+   * The session ID of the Root Admin (the "Crown").
+   * This is decoupled from any seat – the Root Admin may be a pure
+   * spectator and still retain full lobby/admin control.
+   */
+  hostSessionId: string;
+
+  phase:           string;
+  startupIndex:    number;   // Current position in the serpentine sequence (0-7)
+  startupSubPhase: string;
+  setupSequence:   string[]; // Array of Seat IDs in serpentine order
+
   currentPlayerId: string;
-  players: Player[];
+  players:         Player[];
+
   board: {
-    tiles: Map<string, Tile>;
+    tiles:         Map<string, Tile>;
     intersections: Map<string, Intersection>;
-    paths: Map<string, Path>;
+    paths:         Map<string, Path>;
   };
-  turnOrder: string[];
-  robberTileId: string;
-  victimsAvailable: string[];
-  diceResult?: [number, number];
-  activeTrade?: any;
-  turnNumber: number;
+
+  turnOrder:            string[];
+  robberTileId:         string;
+  victimsAvailable:     string[];
+  diceResult?:          [number, number];
+  activeTrade?:         any;
+  turnNumber:           number;
   playedDevCardThisTurn: boolean;
-  devCardDeck: string[];
+  devCardDeck:          string[];
 }
 
 export interface Intersection {
-  id: string; // The Canonical ID
-  coords: HexCoordinate[]; // The 1-3 hexes that share this corner
+  id:     string;             // Canonical ID
+  coords: HexCoordinate[];   // 1–3 hexes that share this corner
   building?: {
-    type: 'SETTLEMENT' | 'CITY';
+    type:     'SETTLEMENT' | 'CITY';
     playerId: string;
   };
 }
 
 export interface LogEntry {
-  id: string;
+  id:        string;
   timestamp: number;
-  type: 'SYSTEM' | 'CHAT' | 'ACTION';
+  type:      'SYSTEM' | 'CHAT' | 'ACTION';
   playerId?: string;
-  message: string;
-  metadata?: any; // To store roll results, etc.
+  message:   string;
+  metadata?: any;
 }
 
 export interface Path {
-  id: string; // The Canonical ID
-  coords: HexCoordinate[]; // The 1-2 hexes that share this edge
+  id:     string;           // Canonical ID
+  coords: HexCoordinate[]; // 1–2 hexes that share this edge
   road?: {
     playerId: string;
   };
 }
 
 export interface ResourceHand {
-  brick: number; wood: number; wheat: number; sheep: number; ore: number;
+  brick: number;
+  wood:  number;
+  wheat: number;
+  sheep: number;
+  ore:   number;
 }
 
-
 export interface TradeOffer {
-  senderId: string;
-  offering: ResourceHand; // What the sender gives
+  senderId:  string;
+  offering:  ResourceHand; // What the sender gives
   requesting: ResourceHand; // What the sender wants
-  responses: Map<string, 'ACCEPTED' | 'REJECTED' | 'PENDING'>;
+  responses:  Map<string, 'ACCEPTED' | 'REJECTED' | 'PENDING'>;
 }

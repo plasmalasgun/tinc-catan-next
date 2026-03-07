@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:4000');
+const MAX_LOGS = 500;
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -40,6 +41,10 @@ export const useGameStore = defineStore('game', {
        // Listen for new log entries
       socket.on('new_log_entry', (entry) => {
         this.logs.push(entry);
+        // FIFO Queue: If we have more than 500 logs, delete the oldest one (index 0)
+        if (this.logs.length > MAX_LOGS) {
+          this.logs.shift();
+        }
       });
 
       // 2. Listen for errors (The fix you needed)
@@ -47,8 +52,28 @@ export const useGameStore = defineStore('game', {
         alert(`Error: ${message}`);
       });
 
+
+      socket.on('action_error', ({ message }) => {
+        this.addLocalLog(`SERVER REJECTED: ${message}`, 'ERROR');
+      });
+
+
       // 3. Join the game
       socket.emit('join_game', 'game-uuid-123', this.playerId);
+    },
+
+    addLocalLog(message: string, type: 'SYSTEM' | 'CHAT' | 'ACTION' | 'CLIENT' | 'ERROR' = 'CLIENT') {
+      this.logs.push({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: Date.now(),
+        type,
+        message
+      });
+      
+      // FIFO Queue for local logs too!
+      if (this.logs.length > MAX_LOGS) {
+        this.logs.shift();
+      }
     },
 
     getPlayerColor(id?: string) {

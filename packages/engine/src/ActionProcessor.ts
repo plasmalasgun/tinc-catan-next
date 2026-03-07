@@ -19,7 +19,9 @@ import { YearOfPlentyChoiceAction } from './actions/YearOfPlentyChoice.js';
 import { StartGameAction } from './actions/StartGame.js';
 import { AddSeatAction } from './actions/AddSeat.js';
 import { RemoveSeatAction } from './actions/RemoveSeat.js';
-import { ConfigureAgentAction } from './actions/ConfigureAgent.js'; 
+import { ConfigureAgentAction } from './actions/ConfigureAgent.js';
+import { ClaimSeatAction } from './actions/ClaimSeat.js';
+import { ChangeColorAction } from './actions/ChangeColor.js';
 
 
 export class ActionProcessor {
@@ -38,7 +40,9 @@ public static process(state: GameState, rawAction: any): ActionResponse {
                           'ADD_SEAT', 
                           'REMOVE_SEAT', 
                           'TOGGLE_CONTROLLER', 
-                          'CONFIGURE_AGENT'];
+                          'CONFIGURE_AGENT',
+                          'CLAIM_SEAT',
+                          'CHANGE_COLOR'];
 
     // Check if it is the player's turn (Only applies to in-game actions like rolling or building)
     if (!adminActions.includes(action.type) && state.currentPlayerId !== action.playerId) {
@@ -114,9 +118,14 @@ public static process(state: GameState, rawAction: any): ActionResponse {
       case 'CONFIGURE_AGENT':
         return new ConfigureAgentAction(playerId, payload);
         
-      // FIX: Added the missing switch case!
       case 'TOGGLE_CONTROLLER': 
         return new ToggleControllerAction(playerId, payload);
+
+      case 'CLAIM_SEAT':
+        return new ClaimSeatAction(playerId, payload);
+        
+      case 'CHANGE_COLOR':
+        return new ChangeColorAction(playerId, payload);
       
       default:
         return null;

@@ -1,28 +1,39 @@
-import { ActionProcessor, Board, LayoutFactory } from '@tinc/engine';
+import { ActionProcessor, Board, LayoutFactory, } from '@tinc/engine';
+import { HeuristicAgent } from './agents/HeuristicAgent.js';
 export class GameManager {
     games = new Map();
     timers = new Map();
-    // Settings for the "Agentic" behavior
-    TURN_TIMEOUT_MS = 60000; // 60 seconds
+    TURN_TIMEOUT_MS = 60_000; // 60 seconds
+    /** Registry of pluggable Agent Brains ("Lego Box") */
+    brainRegistry = {
+        'HEURISTIC': new HeuristicAgent(),
+        // 'LLM':     new LLMAgent(),
+        // 'WEBHOOK': new WebhookAgent(),
+    };
     constructor() { }
+    // ---------------------------------------------------------------------------
+    // LOBBY LIFECYCLE
+    // ---------------------------------------------------------------------------
     /**
-     * Creates a new game instance
+     * Creates a new game instance.
+     * The creator automatically holds the Root Crown (hostSessionId).
      */
     createGame(creatorId, settings) {
-        const gameId = "game-uuid-123"; //uuidv4();    
+        const gameId = 'game-uuid-123';
         const board = new Board();
-        LayoutFactory.createStandard(board); // Flexible layout!
-        console.log(`Server.GameManager.createGame: Board generated. Size: ${board.tiles.size}`);
+        LayoutFactory.createStandard(board);
         const shortId = creatorId.substring(creatorId.length - 5);
-        // Initialize Rules (State)
+        const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#27ae60', '#3498db', '#9b59b6', '#8b4513', '#ffffff', '#111111'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
         const initialState = {
             id: gameId,
+            hostSessionId: creatorId, // 👑 ROOT CROWN — belongs to the session, not any seat
             phase: 'LOBBY',
             startupIndex: 0,
             startupSubPhase: 'SETTLEMENT',
             currentPlayerId: creatorId,
             turnOrder: [creatorId],
-            board: board,
+            board,
             robberTileId: '0,0,0',
             victimsAvailable: [],
             turnNumber: 1,
@@ -30,101 +41,83 @@ export class GameManager {
             devCardDeck: [],
             setupSequence: [],
             players: [
-                // SEAT 1: The Human Host
-                this.createNewPlayer(creatorId, shortId, "#e74c3c", true),
-                // SEATS 2-4: Explicit Ghosts
-                this.createEmptySeat("player_2", "Blue_Seat", "#3498db"),
-                this.createEmptySeat("player_3", "Orange_Seat", "#e67e22"),
-                this.createEmptySeat("player_4", "Green_Seat", "#27ae60")
-            ]
+                this.createNewPlayer(creatorId, shortId, randomColor),
+            ],
         };
         this.games.set(gameId, initialState);
         return gameId;
     }
-    // packages/server/src/GameManager.ts
+    /**
+     * Reconnects an existing session or lets them spectate.
+     * If the lobby has no Crown yet, the first person to join claims it.
+     */
     joinGame(gameId, playerId) {
         const state = this.games.get(gameId);
         if (!state)
-            throw new Error("Server.GameManager.joinGame: Game not found");
-        // PILLAR 1: RECLAIM SEAT (Session Token Matching)
-        let assignedSeat = state.players.find(p => p.controllerId === playerId);
+            throw new Error('Game not found');
+        // Reclaim seat (if they had one) or lurk as Spectator
+        const assignedSeat = state.players.find(p => p.controllerId === playerId);
         if (assignedSeat) {
-            console.log(`RE-LINKING: Player ${playerId} reclaiming seat ${assignedSeat.id}`);
             assignedSeat.isOnline = true;
         }
-        else {
-            // CLAIM NEW SEAT
-            assignedSeat = state.players.find(p => p.controllerType === null);
-            if (assignedSeat) {
-                console.log(`CLAIMING: Player ${playerId} taking vacant seat ${assignedSeat.id}`);
-                assignedSeat.controllerId = playerId;
-                assignedSeat.controllerType = 'HUMAN';
-                assignedSeat.name = playerId.substring(playerId.length - 5);
-                assignedSeat.isOnline = true;
-            }
-            else {
-                throw new Error("Game is full! The Host must kick an offline player to free a seat.");
-            }
-        }
-        // PILLAR 2: HOST MIGRATION (Crown Passing)
-        // Is there any active Host currently online?
-        const isAnyHostOnline = state.players.some(p => p.isHost && p.isOnline);
-        if (!isAnyHostOnline) {
-            // Strip the dormant crown from anyone who might have it
-            state.players.forEach(p => p.isHost = false);
-            // Bestow the crown to this connecting player
-            assignedSeat.isHost = true;
-            console.log(`👑 CROWN CLAIMED: ${assignedSeat.name} is now the Host.`);
+        // If the Crown is dormant, the next person in gets it
+        if (!state.hostSessionId) {
+            state.hostSessionId = playerId;
+            console.log(`👑 ROOT CROWN CLAIMED: ${playerId} is now the Admin.`);
         }
         return state;
     }
-    // Added this function to handle disconnects in the state
+    /**
+     * Marks a player offline and, if they held the Crown, passes it to the
+     * next available online Human.
+     */
     setPlayerOffline(gameId, playerId) {
         const state = this.games.get(gameId);
         if (!state)
             return null;
+        // Mark the seat offline (if they had one)
         const playerLeaving = state.players.find(p => p.controllerId === playerId);
-        if (playerLeaving) {
-            playerLeaving.isOnline = false; // They are offline (⛓️‍💥), NOT a ghost (👻)
-            if (playerLeaving.isHost) {
-                // Try to pass the crown immediately to another online human
-                const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN');
-                if (nextHost) {
-                    playerLeaving.isHost = false;
-                    nextHost.isHost = true;
-                    console.log(`👑 CROWN PASSING: The crown passed to ${nextHost.name}`);
-                }
-                else {
-                    console.log(`👑 CROWN DORMANT: No online humans available. Crown waiting for next connection.`);
-                    // We leave them as host. The moment ANYONE connects, joinGame() will snatch it.
-                }
+        if (playerLeaving)
+            playerLeaving.isOnline = false;
+        // Crown passing: if the leaving session held the Root Crown, find a new heir
+        if (playerId === state.hostSessionId) {
+            const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN' && p.controllerId);
+            if (nextHost?.controllerId) {
+                state.hostSessionId = nextHost.controllerId;
+                console.log(`👑 CROWN PASSING to ${nextHost.name}`);
+            }
+            else {
+                state.hostSessionId = ''; // Dormant – claimed by next joiner
+                console.log('👑 CROWN DORMANT');
             }
         }
         return state;
     }
-    // Helper to create a "Brain-dead" seat
+    // ---------------------------------------------------------------------------
+    // PLAYER / SEAT FACTORIES
+    // ---------------------------------------------------------------------------
+    /** Creates an empty (ghost) seat – no controller, no crown. */
     createEmptySeat(id, name, color) {
         return {
             id, name, color,
-            isHost: false,
-            isOnline: false, // Skulls are never "online"
+            isOnline: false,
             controllerId: null,
-            controllerType: null, // This triggers the 👻 icon
+            controllerType: null,
             resources: { brick: 0, wood: 0, wheat: 0, sheep: 0, ore: 0 },
             victoryPoints: 0,
             devCards: [],
             numPlayedKnights: 0,
             numSettlements: 5,
             hasLargestArmy: false,
-            hasLongestRoad: false
+            hasLongestRoad: false,
         };
     }
-    // Inside GameManager.ts (as a private helper)
-    createNewPlayer(id, name, color, isHost = false) {
+    /** Creates a Human seat for the original game creator. */
+    createNewPlayer(id, name, color) {
         console.log(`Server.GameManager.createNewPlayer: ${id} - ${name}`);
         return {
             id: `seat_${id.substring(0, 3)}`,
-            name, color, isHost,
+            name, color,
             isOnline: true,
             controllerId: id,
             controllerType: 'HUMAN',
@@ -134,65 +127,72 @@ export class GameManager {
             numPlayedKnights: 0,
             numSettlements: 5,
             hasLargestArmy: false,
-            hasLongestRoad: false
+            hasLongestRoad: false,
         };
     }
-    /**
-     * The single point of entry for actions (Human or Agent)
-     */
+    // ---------------------------------------------------------------------------
+    // ACTION PIPELINE
+    // ---------------------------------------------------------------------------
+    /** Single entry-point for all actions (Human or Agent). */
     handleAction(gameId, playerId, rawAction) {
         const state = this.games.get(gameId);
         if (!state)
-            throw new Error("Game not found");
-        // 1. Process the logic via our Engine
+            throw new Error('Game not found');
         const result = ActionProcessor.process(state, { ...rawAction, playerId });
         if (result.success) {
-            // 2. If action succeeded, update memory
             this.games.set(gameId, result.newState);
-            // 3. Reset the Turn Timer
             this.resetTimer(gameId);
-            return result;
+            // Let humans see the board update before the bot fires
+            setTimeout(() => this.triggerAgentIfTurn(gameId), 1500);
         }
         return result;
     }
-    reassignHost(state) {
-        // 1. Check if the current host is still online
-        const currentHost = state.players.find(p => p.isHost && p.isOnline);
-        if (currentHost)
-            return; // Host is fine, no change needed.
-        // 2. If host is offline, find the next available HUMAN who is online
-        const nextHost = state.players.find(p => p.isOnline && p.controllerType === 'HUMAN');
-        if (nextHost) {
-            // Clear old host flags
-            state.players.forEach(p => p.isHost = false);
-            // Bestow the crown
-            nextHost.isHost = true;
-            console.log(`CROWN PASSING: ${nextHost.name} is the new Host.`);
+    // ---------------------------------------------------------------------------
+    // AGENT EXECUTION LOOP
+    // ---------------------------------------------------------------------------
+    triggerAgentIfTurn(gameId) {
+        const state = this.games.get(gameId);
+        if (!state)
+            return;
+        const activePlayer = state.players.find(p => p.id === state.currentPlayerId);
+        if (!activePlayer || activePlayer.controllerType !== 'AGENT')
+            return;
+        const brainType = activePlayer.agentType || 'HEURISTIC';
+        const brain = this.brainRegistry[brainType];
+        if (!brain) {
+            console.error(`ERROR: Brain type "${brainType}" not found in registry!`);
+            return;
+        }
+        console.log(`🤖 Agent ${activePlayer.name} (${brainType}) is thinking...`);
+        const nextMove = brain.decideMove(state, activePlayer.id);
+        if (nextMove) {
+            console.log(`🤖 Agent decided: ${nextMove.type}`);
+            this.handleAction(gameId, activePlayer.id, nextMove);
+        }
+        else {
+            console.log(`🤖 Agent couldn't decide – skipping turn.`);
+            this.handleAction(gameId, activePlayer.id, { type: 'END_TURN', payload: {} });
         }
     }
+    // ---------------------------------------------------------------------------
+    // TURN TIMER
+    // ---------------------------------------------------------------------------
     resetTimer(gameId) {
-        // Clear existing timer
-        if (this.timers.has(gameId)) {
+        if (this.timers.has(gameId))
             clearTimeout(this.timers.get(gameId));
-        }
-        // Set new timer for "Auto-Move" or "Timeout"
-        const timer = setTimeout(() => {
-            this.handleTimeout(gameId);
-        }, this.TURN_TIMEOUT_MS);
+        const timer = setTimeout(() => this.handleTimeout(gameId), this.TURN_TIMEOUT_MS);
         this.timers.set(gameId, timer);
     }
-    /**
-     * Agentic Logic: What happens if a player (Human or Agent) stalls?
-     */
     handleTimeout(gameId) {
         const state = this.games.get(gameId);
         if (!state)
             return;
         console.log(`Game ${gameId}: Player ${state.currentPlayerId} timed out.`);
-        // In a professional "Agentic" server, we might force an 'END_TURN' 
-        // or trigger a 'BotAction' here so the game never gets stuck.
         this.handleAction(gameId, state.currentPlayerId, { type: 'END_TURN' });
     }
+    // ---------------------------------------------------------------------------
+    // READ
+    // ---------------------------------------------------------------------------
     getGameState(gameId) {
         return this.games.get(gameId);
     }

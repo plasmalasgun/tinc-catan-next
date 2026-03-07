@@ -5,7 +5,7 @@ export const COLOR_TO_EMOJI = {
   "#27ae60": "🟢", // Green
   "#3498db": "🔵", // Blue
   "#9b59b6": "🟣", // Purple
-  "#7f8c8d": "⚫", // Gray
+  "#111111": "⚫", // Black
   "#ffffff": "⚪", // White
   "#8b4513": "🟤", // Brown
 };

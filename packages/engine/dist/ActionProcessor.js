@@ -16,6 +16,9 @@ import { YearOfPlentyChoiceAction } from './actions/YearOfPlentyChoice.js';
 import { StartGameAction } from './actions/StartGame.js';
 import { AddSeatAction } from './actions/AddSeat.js';
 import { RemoveSeatAction } from './actions/RemoveSeat.js';
+import { ConfigureAgentAction } from './actions/ConfigureAgent.js';
+import { ClaimSeatAction } from './actions/ClaimSeat.js';
+import { ChangeColorAction } from './actions/ChangeColor.js';
 export class ActionProcessor {
     /**
      * This is the entry point. It receives a command and the current game state.
@@ -26,7 +29,13 @@ export class ActionProcessor {
             return { success: false, message: `The game doesn't recognize the command: ${rawAction.type}` };
         }
         // META-ACTIONS: These are lobby/admin commands that bypass the "turn order" rules
-        const adminActions = ['START_GAME', 'ADD_SEAT', 'REMOVE_SEAT', 'TOGGLE_CONTROLLER'];
+        const adminActions = ['START_GAME',
+            'ADD_SEAT',
+            'REMOVE_SEAT',
+            'TOGGLE_CONTROLLER',
+            'CONFIGURE_AGENT',
+            'CLAIM_SEAT',
+            'CHANGE_COLOR'];
         // Check if it is the player's turn (Only applies to in-game actions like rolling or building)
         if (!adminActions.includes(action.type) && state.currentPlayerId !== action.playerId) {
             return { success: false, message: "Wait for your turn!" };
@@ -78,9 +87,14 @@ export class ActionProcessor {
                 return new AddSeatAction(playerId, payload);
             case 'REMOVE_SEAT':
                 return new RemoveSeatAction(playerId, payload);
-            // FIX: Added the missing switch case!
+            case 'CONFIGURE_AGENT':
+                return new ConfigureAgentAction(playerId, payload);
             case 'TOGGLE_CONTROLLER':
                 return new ToggleControllerAction(playerId, payload);
+            case 'CLAIM_SEAT':
+                return new ClaimSeatAction(playerId, payload);
+            case 'CHANGE_COLOR':
+                return new ChangeColorAction(playerId, payload);
             default:
                 return null;
         }

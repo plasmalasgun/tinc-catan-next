@@ -7,45 +7,49 @@ export class StartGameAction {
         this.payload = payload;
     }
     validate(state) {
-        const actor = state.players.find(p => p.controllerId === this.playerId);
-        if (!actor?.isHost)
-            return { valid: false, error: "Unauthorized." };
-        // THE NEW RULE: No Ghosts allowed when starting
+        // Only the Root Admin (session-level crown) may manifest the game.
+        // They don't need a seat — a pure spectator-admin is a valid scenario.
+        const isRootAdmin = this.playerId === state.hostSessionId;
+        if (!isRootAdmin) {
+            return { valid: false, error: 'Only the Root Admin can start the game.' };
+        }
+        // No ghost seats allowed at launch
         const hasGhosts = state.players.some(p => p.controllerType === null);
         if (hasGhosts) {
-            return { valid: false, error: "Cannot start: All seats must have a Brain 🧠 or a Robot 🤖." };
+            return {
+                valid: false,
+                error: 'Cannot start: All seats must have a Brain 🧠 or a Robot 🤖.',
+            };
         }
-        if (state.players.length < 2)
-            return { valid: false, error: "Need at least 2 players." };
+        if (state.players.length < 2) {
+            return { valid: false, error: 'Need at least 2 players.' };
+        }
         return { valid: true };
     }
     execute(state) {
-        // 1. MANIFEST AGENTS: Turn all Ghosts into Robots
+        // 1. MANIFEST AGENTS: Any ghost that slipped through becomes a bot
         state.players.forEach((seat) => {
             if (seat.controllerType === null) {
                 seat.controllerType = 'AGENT';
                 seat.controllerId = `bot_${seat.id}`;
-                seat.isOnline = true; // Agents are effectively always online
+                seat.isOnline = true;
                 seat.name = `Agent_${seat.id.split('_')[1]}`;
             }
         });
-        // 2. SET TURN ORDER: 
-        // We shuffle the seat IDs to determine who is "Player 1", "Player 2", etc.
+        // 2. RANDOMISE TURN ORDER
         state.turnOrder = state.players.map(p => p.id).sort(() => Math.random() - 0.5);
-        // 3. GENERATE SERPENTINE SEQUENCE (Logic from Setup.java:80)
-        // Catan setup goes: [1, 2, 3, 4, 4, 3, 2, 1]
-        // We store this as a flat array of Seat IDs
+        // 3. GENERATE SERPENTINE SETUP SEQUENCE  [1,2,3,4,4,3,2,1]
         const forward = [...state.turnOrder];
         const backward = [...state.turnOrder].reverse();
-        state.setupSequence = [...forward, ...backward]; // Should be length 8 for 4 players
-        // 4. TRANSITION PHASE
+        state.setupSequence = [...forward, ...backward];
+        // 4. TRANSITION TO STARTUP PHASE
         state.phase = 'STARTUP';
-        state.startupIndex = 0; // Start at the first item in the serpentine sequence
+        state.startupIndex = 0;
         state.currentPlayerId = state.setupSequence[0];
         return {
             success: true,
-            message: "The game has been manifested. Begin Startup Placements.",
-            newState: state
+            message: 'The game has been manifested. Begin Startup Placements.',
+            newState: state,
         };
     }
 }

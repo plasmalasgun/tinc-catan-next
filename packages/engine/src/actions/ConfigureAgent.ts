@@ -5,21 +5,20 @@ export class ConfigureAgentAction implements Action {
   type = 'CONFIGURE_AGENT';
 
   constructor(
-    public playerId: string, // The Host making the change
-    public payload: { targetPlayerId: string; agentType: 'HEURISTIC' | 'LLM' | 'WEBHOOK' }
+    public playerId: string, // The Root Admin making the change
+    public payload: { targetPlayerId: string; agentType: 'HEURISTIC' | 'LLM' | 'WEBHOOK' },
   ) {}
 
   validate(state: GameState) {
-    const actor = state.players.find(p => p.controllerId === this.playerId);
-    
-    // Only the Host can change the wiring of a robot
-    if (!actor?.isHost) {
-      return { valid: false, error: "Only the 👑 Host can configure Agents." };
+    // Only the Root Admin (session-level crown) can rewire a robot's brain
+    const isRootAdmin = this.playerId === state.hostSessionId;
+    if (!isRootAdmin) {
+      return { valid: false, error: 'Only the 👑 Root Admin can configure Agents.' };
     }
 
     const targetSeat = state.players.find(p => p.id === this.payload.targetPlayerId);
     if (targetSeat?.controllerType !== 'AGENT') {
-      return { valid: false, error: "You can only configure Brains for Agents." };
+      return { valid: false, error: 'You can only configure Brains for Agents.' };
     }
 
     return { valid: true };
@@ -27,14 +26,14 @@ export class ConfigureAgentAction implements Action {
 
   execute(state: GameState): ActionResponse {
     const seat = state.players.find(p => p.id === this.payload.targetPlayerId)!;
-    
-    // Plug in the new Lego Block data
+
+    // Plug in the new Lego Brain
     seat.agentType = this.payload.agentType;
 
-    return { 
-      success: true, 
-      message: `Agent ${seat.name} is now using the ${this.payload.agentType} Brain.`, 
-      newState: state 
+    return {
+      success: true,
+      message:  `Agent ${seat.name} is now using the ${this.payload.agentType} Brain.`,
+      newState: state,
     };
   }
 }

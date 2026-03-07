@@ -26,7 +26,14 @@ export interface Player {
     color: string;
     controllerId: string | null;
     controllerType: 'HUMAN' | 'AGENT' | null;
-    isHost: boolean;
+    agentType?: 'HEURISTIC' | 'LLM' | 'WEBHOOK' | null;
+    /**
+     * @deprecated  The Crown no longer lives on the seat.
+     * Use `GameState.hostSessionId` to determine the Root Admin.
+     * This field is kept optional so legacy reads don't crash, but
+     * nothing in the engine writes to it for authority checks.
+     */
+    isHost?: boolean;
     isOnline: boolean;
     resources: {
         brick: number;
@@ -51,6 +58,12 @@ export interface Tile {
 }
 export interface GameState {
     id: string;
+    /**
+     * The session ID of the Root Admin (the "Crown").
+     * This is decoupled from any seat – the Root Admin may be a pure
+     * spectator and still retain full lobby/admin control.
+     */
+    hostSessionId: string;
     phase: string;
     startupIndex: number;
     startupSubPhase: string;
