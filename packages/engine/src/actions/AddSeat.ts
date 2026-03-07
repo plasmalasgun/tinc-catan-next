@@ -30,9 +30,12 @@ export class AddSeatAction implements Action {
       id:             `seat_${Math.random().toString(36).substr(2, 4)}`,
       name:           'Empty_Seat',
       color:          nextColor,
+      isHost:         false,
       isOnline:       false,
       controllerId:   null,
-      controllerType: null, // 👻 Ghost – will be configured before launch
+      controllerType: null,
+      timerEnabled:   false,
+      turnTimeoutMs:  60_000,
       resources: { brick: 0, wood: 0, wheat: 0, sheep: 0, ore: 0 },
       victoryPoints:    0,
       devCards:         [],
