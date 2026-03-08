@@ -4,6 +4,7 @@ export interface ActionResponse {
     message?: string;
     newState?: GameState;
     followUp?: string;
+    currentPlayerId?: string;
 }
 export interface Action {
     type: string;

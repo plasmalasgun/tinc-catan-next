@@ -53,9 +53,9 @@ export const useGameStore = defineStore('game', {
       });
 
 
-      socket.on('action_error', ({ message }) => {
-        this.addLocalLog(`SERVER REJECTED: ${message}`, 'ERROR');
-      });
+      // socket.on('action_error', ({ message }) => {
+      //   this.addLocalLog(`SERVER REJECTED: ${message}`, 'ERROR');
+      // });
 
 
       // 3. Join the game

@@ -10,19 +10,54 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameManager();
+/** Maps hex color to a Unicode emoji block for the terminal */
+const COLOR_ICONS = {
+    '#e74c3c': '🔴',
+    '#e67e22': '🟠',
+    '#f1c40f': '🟡',
+    '#27ae60': '🟢',
+    '#3498db': '🔵',
+    '#9b59b6': '🟣',
+    '#8b4513': '🟤',
+    '#ffffff': '⬜',
+    '#333333': '⬛',
+};
 // ---------------------------------------------------------------------------
-// SHARED LOG FORMAT
-//
-// Both the terminal (console.log) and the Vue DevConsole display the same
-// structured entry:
-//
-//  [HH:MM:SS] 🔴 Agent_ag3b
-//    REQ {"action_id":"abc123","user":"Agent_ag3b","type":"ROLL_DICE","payload":{}}
-//    RES {"action_id":"abc123","success":true,"message":"Rolled a 6."}
-//
-// The `new_log_entry` socket event carries this same object so the Vue
-// component can render it identically.
+// HELPERS (must be defined before they are used)
 // ---------------------------------------------------------------------------
+/** Extract the current player ID from a game state object */
+function getCurrentPlayerIdFromState(state) {
+    // Adjust this to match your actual state structure:
+    return state.currentPlayerId; // if stored directly
+    // or
+    // return state.players[state.turnIndex]?.id;      // if using a turn index
+}
+/** Get the current player ID for a given game (by gameId) */
+function getCurrentPlayerId(gameId) {
+    const state = gameManager.getGameState(gameId);
+    if (!state)
+        return '';
+    return getCurrentPlayerIdFromState(state);
+}
+/** Get a player’s display name */
+function getPlayerName(gameId, playerId) {
+    const state = gameManager.getGameState(gameId);
+    const player = state?.players.find((p) => p.id === playerId);
+    return player?.name || playerId;
+}
+/** Get a player’s color */
+function getPlayerColor(gameId, playerId) {
+    const state = gameManager.getGameState(gameId);
+    const player = state?.players.find((p) => p.id === playerId);
+    return player?.color || '#bdc3c7';
+}
+// ---------------------------------------------------------------------------
+// LOG ENTRY BUILDER (for successful actions)
+// ---------------------------------------------------------------------------
+/**
+ * Build a log entry that matches the structure expected by the Vue console.
+ * Adds `currentPlayerId` to the response object.
+ */
 function buildLogEntry(payload, state) {
     const { playerId, action, actionId, result } = payload;
     // Resolve display name and color from the state
@@ -44,38 +79,29 @@ function buildLogEntry(payload, state) {
         ...(result.followUp ? { followUp: result.followUp } : {}),
     };
     // ── Terminal output (uniform with Vue console) ──────────────────────
-    const colorIcon = COLOR_ICONS[playerColor] ?? '⚪';
+    const colorIcon = COLOR_ICONS[playerColor] ?? '⬜';
     console.log(`[${timeStr}] ${colorIcon} ${playerName}`);
     console.log(`  REQ ${JSON.stringify(request)}`);
     console.log(`  RES ${JSON.stringify(response)}`);
+    // ── Add the current player ID (from the updated state) ──────────────
+    const currentPlayerId = getCurrentPlayerIdFromState(state);
     // ── Socket payload (consumed by CommandConsole.vue) ─────────────────
     return {
         id: Math.random().toString(36).substr(2, 9),
-        timestamp: ts.getTime(),
+        timestamp: Date.now(),
         type: 'ACTION',
-        timeStr,
-        playerId: seat?.id ?? playerId,
-        playerName,
-        playerColor,
-        actionId,
-        request,
-        response,
+        playerId: playerId,
+        playerName: playerName,
+        playerColor: playerColor,
+        request: request,
+        response: {
+            ...response,
+            currentPlayerId, // ← now included in every action log
+        },
     };
 }
-/** Maps hex color to a Unicode emoji block for the terminal */
-const COLOR_ICONS = {
-    '#e74c3c': '🔴',
-    '#e67e22': '🟠',
-    '#f1c40f': '🟡',
-    '#27ae60': '🟢',
-    '#3498db': '🔵',
-    '#9b59b6': '🟣',
-    '#8b4513': '🟤',
-    '#ffffff': '⚪',
-    '#111111': '⚫',
-};
 // ---------------------------------------------------------------------------
-// CENTRAL BROADCAST — fires for EVERY action (human or agent)
+// CENTRAL BROADCAST — fires for EVERY successful action
 // ---------------------------------------------------------------------------
 gameManager.on('action_success', async (payload) => {
     const { gameId, newState } = payload;
@@ -104,7 +130,7 @@ io.on('connection', (socket) => {
             state = gameManager.getGameState(gameId);
         }
         const ts = new Date().toTimeString().slice(0, 8);
-        console.log(`[${ts}] ⚪ ${playerId} entered the room.`);
+        console.log(`[${ts}] ⬜ ${playerId} entered the room.`);
         io.to(gameId).emit('new_log_entry', {
             id: Math.random().toString(36).substr(2, 9),
             timestamp: Date.now(),
@@ -118,11 +144,29 @@ io.on('connection', (socket) => {
         try {
             const result = gameManager.handleAction(gameId, playerId, action);
             if (!result.success) {
-                // Log rejections to terminal too so they're traceable
+                // --- REJECTED ACTION: emit a rich log entry ---
                 const ts = new Date().toTimeString().slice(0, 8);
                 console.log(`[${ts}] ❌ ${playerId} → ${action.type} REJECTED: ${result.message}`);
-                socket.emit('action_error', { message: result.message });
+                const currentPlayerId = getCurrentPlayerId(gameId); // who should play
+                const logEntry = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    timestamp: Date.now(),
+                    type: 'ACTION', // Keep as ACTION so it appears in the ACTION filter
+                    playerId,
+                    playerName: getPlayerName(gameId, playerId),
+                    playerColor: getPlayerColor(gameId, playerId),
+                    request: { type: action.type, payload: action.payload },
+                    response: {
+                        success: false,
+                        message: result.message, // e.g., "REJECTED: It is seat_xxx's turn"
+                        currentPlayerId, // who should play
+                    },
+                };
+                io.to(gameId).emit('new_log_entry', logEntry);
+                // (Optional) Remove the old action_error emit to avoid duplicate logs.
+                // socket.emit('action_error', { message: result.message });
             }
+            // If result.success is true, the 'action_success' event (above) handles logging.
         }
         catch (err) {
             console.error('[ERROR] Action processing:', err);
@@ -132,7 +176,7 @@ io.on('connection', (socket) => {
         const pId = socket.playerId;
         const gId = socket.currentGameId;
         if (pId && gId) {
-            console.log(`[${new Date().toTimeString().slice(0, 8)}] ⚪ ${pId} went offline.`);
+            console.log(`[${new Date().toTimeString().slice(0, 8)}] ⬜ ${pId} went offline.`);
             const updatedState = gameManager.setPlayerOffline(gId, pId);
             if (updatedState) {
                 io.to(gId).emit('new_log_entry', {
@@ -149,7 +193,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log(`[DISCONNECT] ${socket.id}`));
 });
 // ---------------------------------------------------------------------------
-// HELPERS
+// STATE BROADCAST HELPERS
 // ---------------------------------------------------------------------------
 async function broadcastState(gameId, state) {
     const sockets = await io.in(gameId).fetchSockets();
@@ -173,7 +217,6 @@ function maskStateForPlayer(state, playerId) {
 function getTotal(res) {
     if (!res)
         return 0;
-    //return Object.values(res).reduce((a: any, b: any) => a + b, 0);
     return Object.values(res).reduce((a, b) => a + b, 0);
 }
 // ---------------------------------------------------------------------------

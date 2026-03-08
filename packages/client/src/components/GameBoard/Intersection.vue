@@ -6,6 +6,7 @@
     id: string;
     coords: {q: number, r: number}[];
     building?: { type: string, playerId: string };
+    color?: string;          // passed from parent when a building exists
     canBuild?: boolean;
   }>();
 
@@ -13,10 +14,9 @@
 
   const pos = computed(() => getAveragePixelCoords(props.coords));
 
-  const color = computed(() => {
-    if (!props.building) return 'transparent';
-    return props.building.playerId === 'p1' ? '#e74c3c' : '#3498db'; // Red vs Blue
-  });
+  // SVG path strings for the buildings (centered at origin)
+  const settlementPath = "M -4.43132,4.4313451 H 4.431326 V 0.03981408 L 3.0479889e-6,-4.4313859 -4.43132,0.03981408 Z";
+  const cityPath = "M -3.6238055,-7.2545167 -8.0044301,-2.751278 V 7.2544297 H 8.0044245 V -0.16917887 H 0.75681904 V -2.751278 Z";
 </script>
 
 <template>
@@ -24,15 +24,26 @@
      @click="emit('click', props.id)"
      class="intersection-node">
     
-    <!-- Invisible Hitbox for clicking -->
+    <!-- Invisible hitbox for clicking -->
     <circle r="12" fill="transparent" class="hitbox" />
     
-    <!-- The Actual Building -->
-    <rect v-if="building?.type === 'SETTLEMENT'" 
-          x="-6" y="-6" width="12" height="12" :fill="color" stroke="white" />
+    <!-- Settlement -->
+    <path
+      v-if="building?.type === 'SETTLEMENT'"
+      :d="settlementPath"
+      :fill="color"
+      stroke="white"
+      stroke-width="0.5"
+    />
     
-    <circle v-else-if="building?.type === 'CITY'" 
-            r="8" :fill="color" stroke="white" />
+    <!-- City -->
+    <path
+      v-else-if="building?.type === 'CITY'"
+      :d="cityPath"
+      :fill="color"
+      stroke="white"
+      stroke-width="0.5"
+    />
 
     <!-- Ghost indicator for building placement -->
     <circle v-else-if="canBuild" 
