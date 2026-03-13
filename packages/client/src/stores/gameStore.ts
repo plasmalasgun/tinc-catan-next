@@ -10,7 +10,14 @@ export const useGameStore = defineStore('game', {
     // sessionStorage creates a new ID per tab, but keeps it on refresh
     playerId: sessionStorage.getItem('catan_id') || `user_${Math.random().toString(36).substring(2, 7)}`,
     logs: [] as any[],
-    isTrading: false
+    isTrading: false,
+    
+    // NEW: Global state for the Map Editor paintbrush
+    mapEditor: {
+      toolCategory: 'RESOURCE' as 'RESOURCE' | 'NUMBER' | null,
+      selectedResource: 'WHEAT',
+      selectedNumber: 8,
+    }
   }),
   actions: {
     init() {

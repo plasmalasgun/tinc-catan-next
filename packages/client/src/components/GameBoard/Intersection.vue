@@ -15,8 +15,8 @@
   const pos = computed(() => getAveragePixelCoords(props.coords));
 
   // SVG path strings for the buildings (centered at origin)
-  const settlementPath = "M -4.43132,4.4313451 H 4.431326 V 0.03981408 L 3.0479889e-6,-4.4313859 -4.43132,0.03981408 Z";
-  const cityPath = "M -3.6238055,-7.2545167 -8.0044301,-2.751278 V 7.2544297 H 8.0044245 V -0.16917887 H 0.75681904 V -2.751278 Z";
+  const settlementPath = "M -6.6469851,6.6469877 H 6.6469882 V -1.4105927 L 1.5459839e-6,-6.6470493 -6.6469851,-1.4105927 Z";
+  const cityPath = "m -3.8820497,-8.9536803 -5.0715547,4.737585 V 8.9536037 H 8.9536047 V 1.1436717 H 1.189507 v -5.359767 z";
 </script>
 
 <template>

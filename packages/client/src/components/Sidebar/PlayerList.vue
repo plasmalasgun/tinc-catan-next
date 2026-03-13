@@ -31,7 +31,7 @@ const claimSeat = (seatId: string) => gameStore.performAction('CLAIM_SEAT', { ta
 </script>
 
 <template>
-  <aside class="sidebar">
+  <div class="lobby-tab">
     <div class="sidebar-header">
       <h3>AGENTIC LOBBY</h3>
       <div class="my-id">LOCAL_USER: {{ gameStore.playerId }}</div>
@@ -74,7 +74,7 @@ const claimSeat = (seatId: string) => gameStore.performAction('CLAIM_SEAT', { ta
     <div class="phase-badge" v-if="gameStore.state">🛰️ SYSTEM_PHASE: {{ gameStore.state.phase }}</div>
 
     <PlayerPanel v-if="selectedPlayerId" :playerId="selectedPlayerId" @close="selectedPlayerId = null" />
-  </aside>
+  </div>
 </template>
 
 <style scoped>
@@ -93,26 +93,17 @@ const claimSeat = (seatId: string) => gameStore.performAction('CLAIM_SEAT', { ta
                        the VIEWPORT at all times
    top/bottom: 0    → full height
 ──────────────────────────────────────────────────────────────── */
-.sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 400px;
-  z-index: 1000;
 
-  background: rgba(10,10,10,0.92);
-  color: #e0e0e0;
+.lobby-tab {
   padding: 15px;
-  border-left: 1px solid #333;
   font-family: 'Courier New', Courier, monospace;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  color: #e0e0e0;
   overflow-y: auto;
 }
 
-.sidebar-header { margin-bottom: 15px; }
-.sidebar-header h3 { margin: 0 0 5px 0; color: #00ff00; }
 .my-id { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
 
 .spectator-badge {

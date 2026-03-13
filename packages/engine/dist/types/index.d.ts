@@ -112,4 +112,18 @@ export interface TradeOffer {
     requesting: ResourceHand;
     responses: Map<string, 'ACCEPTED' | 'REJECTED' | 'PENDING'>;
 }
+export type MapMode = 'PANGAEA' | 'ARCHIPELAGO';
+export interface HexBlueprint {
+    q: number;
+    r: number;
+    s: number;
+    type: ResourceType;
+    value: number;
+}
+export interface MapTemplate {
+    name: string;
+    mode: MapMode;
+    radius: number;
+    hexes: HexBlueprint[];
+}
 //# sourceMappingURL=index.d.ts.map

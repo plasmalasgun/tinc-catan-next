@@ -42,7 +42,8 @@ export interface Player {
   // timerEnabled defaults to FALSE — human turns are untimed by default.
   // When false, the server never starts a skip-timer for this seat.
   timerEnabled:  boolean;
-  turnTimeoutMs: number;    // only used when timerEnabled is true; default 60 000
+  // only used when timerEnabled is true; default 60 000
+  turnTimeoutMs: number;    
 
   resources: {
     brick: number;
@@ -121,4 +122,23 @@ export interface TradeOffer {
   offering:   ResourceHand;
   requesting: ResourceHand;
   responses:  Map<string, 'ACCEPTED' | 'REJECTED' | 'PENDING'>;
+}
+
+// ─── MAP TEMPLATE BLUEPRINTS ──────────────────────────────────────────────
+
+export type MapMode = 'PANGAEA' | 'ARCHIPELAGO';
+
+export interface HexBlueprint {
+  q: number;
+  r: number;
+  s: number;
+  type: ResourceType;
+  value: number; // 0 for desert, 2-12 for producing hexes
+}
+
+export interface MapTemplate {
+  name: string;
+  mode: MapMode;
+  radius: number;
+  hexes: HexBlueprint[];
 }
